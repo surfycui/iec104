@@ -11,9 +11,9 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "env": {
-                "SERVER_HOST":"192.168.0.105",
-                "SERVER_PORT":2404,
-                "DEBUG":true
+                "SERVER_HOST": "192.168.88.17",
+                "SERVER_PORT": "2404",
+                "DEBUG": "true"
             },
             "args": []
         }

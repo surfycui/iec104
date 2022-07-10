@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/9d77v/iec104"
-	"github.com/9d77v/iec104/example/client/config"
-	"github.com/9d77v/iec104/example/client/worker"
+	"github.com/surfycui/iec104"
+	"github.com/surfycui/iec104/example/client/config"
+	"github.com/surfycui/iec104/example/client/worker"
 )
 
 func main() {
