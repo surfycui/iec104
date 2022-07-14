@@ -90,6 +90,8 @@ func (c *Client) Run(task func(*APDU)) {
 		c.rsn = 0
 		c.ssn = 0
 		c.iFrameNum = 0
+		c.sendChan = make(chan []byte, 1)
+		c.dataChan = make(chan *APDU, 1)
 	}
 }
 
@@ -159,6 +161,7 @@ func (c *Client) write(ctx context.Context) {
 		case data := <-c.sendChan:
 			_, err := c.conn.Write(data)
 			if err != nil {
+				c.Logger.Errorf(c.ctx, "发送数据失败, 错误信息: %v", err)
 				return
 			}
 		}
