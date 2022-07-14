@@ -3,7 +3,6 @@ package iec104
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"math"
 	"time"
 )
@@ -116,7 +115,7 @@ func (asdu *ASDU) ParseASDU(asduBytes []byte) (signals []*Signal, err error) {
 			s.Ts = asdu.ParseTime(asduBytes[6+i*size+4 : 6+i*size+11])
 		case CIcNa1, CCiNa1, MEiNA1:
 		default:
-			log.Fatalln("暂不支持的数据类型:", asdu.TypeID)
+			fmt.Println("暂不支持的数据类型:", asdu.TypeID)
 		}
 		signals = append(signals, s)
 	}
