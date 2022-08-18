@@ -20,7 +20,7 @@ var (
 	retryTimes        = 3 //存在备用服务器时，单个服务器重试次数
 )
 
-//Client 104客户端
+// Client 104客户端
 type Client struct {
 	address    string
 	subAddress string
@@ -38,7 +38,7 @@ type Client struct {
 	ctx        context.Context
 }
 
-//NewClient 初始化客户端,连接失败，每隔10秒重试
+// NewClient 初始化客户端,连接失败，每隔10秒重试
 func NewClient(address string, logger *glog.Logger, subAddress ...string) *Client {
 	subAddr := ""
 	if len(subAddress) == 1 && subAddress[0] != "" {
@@ -56,7 +56,7 @@ func NewClient(address string, logger *glog.Logger, subAddress ...string) *Clien
 	}
 }
 
-//Run 运行
+// Run 运行
 func (c *Client) Run(task func(*APDU)) {
 	go c.handleSignal()
 	//定时器，每15分钟发送一次总召唤
@@ -70,6 +70,7 @@ func (c *Client) Run(task func(*APDU)) {
 		go c.read(ctx)
 		go c.write(ctx)
 		go c.handler(ctx, task)
+		ticker.Reset(totalCallInterval)
 	cronLoop:
 		for {
 			select {
@@ -85,8 +86,6 @@ func (c *Client) Run(task func(*APDU)) {
 		if c.conn != nil {
 			c.conn.Close()
 		}
-		ctx, cancel = context.WithCancel(context.Background())
-		c.cancel = cancel
 		c.rsn = 0
 		c.ssn = 0
 		c.iFrameNum = 0
@@ -95,7 +94,7 @@ func (c *Client) Run(task func(*APDU)) {
 	}
 }
 
-//建立tcp连接，支持重试和主备切换
+// 建立tcp连接，支持重试和主备切换
 func (c *Client) dail() net.Conn {
 	var conn net.Conn
 	var err error
@@ -125,7 +124,7 @@ func (c *Client) dail() net.Conn {
 	return conn
 }
 
-//Read 读数据
+// Read 读数据
 func (c *Client) read(ctx context.Context) {
 	c.Logger.Info(c.ctx, "socket读协程启动")
 	defer func() {
@@ -146,7 +145,7 @@ func (c *Client) read(ctx context.Context) {
 	}
 }
 
-//Write 写数据
+// Write 写数据
 func (c *Client) write(ctx context.Context) {
 	c.Logger.Info(c.ctx, "socket写协程启动")
 	defer func() {
@@ -168,7 +167,7 @@ func (c *Client) write(ctx context.Context) {
 	}
 }
 
-//handler 处理接收到的已解析数据
+// handler 处理接收到的已解析数据
 func (c *Client) handler(ctx context.Context, task func(c *APDU)) {
 	c.Logger.Info(c.ctx, "数据处理协程启动")
 	defer func() {
@@ -187,7 +186,7 @@ func (c *Client) handler(ctx context.Context, task func(c *APDU)) {
 	}
 }
 
-//ParseData 解析接收到的数据
+// ParseData 解析接收到的数据
 func (c *Client) parseData(ctx context.Context) error {
 	handleErr := func(tag string, err error) {
 		c.Logger.Errorf(c.ctx, "%s read socket读操作异常: %v", tag, err)
@@ -287,14 +286,14 @@ func (c *Client) parseData(ctx context.Context) error {
 	return nil
 }
 
-//sendUFrame 发送U帧
+// sendUFrame 发送U帧
 func (c *Client) sendUFrame(cmd [4]byte) {
 	data := convertBytes(convert4BytesToSlice(cmd))
 	c.Logger.Debugf(c.ctx, "发送U帧: [% X]", data)
 	c.sendChan <- data
 }
 
-//sendSFrame 发送S帧
+// sendSFrame 发送S帧
 func (c *Client) sendSFrame() {
 	rsnBytes := parseLittleEndianUInt16(uint16(c.rsn << 1))
 	sendBytes := make([]byte, 0, 0)
@@ -305,7 +304,7 @@ func (c *Client) sendSFrame() {
 	c.sendChan <- data
 }
 
-//sendTotalCall 发送总召唤
+// sendTotalCall 发送总召唤
 func (c *Client) sendTotalCall() {
 	ssnBytes := parseLittleEndianUInt16(uint16(c.ssn << 1))
 	rsnBytes := parseLittleEndianUInt16(uint16(c.rsn << 1))
@@ -315,10 +314,14 @@ func (c *Client) sendTotalCall() {
 	totalCallData = append(totalCallData, 0x64, 0x01, 0x06, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x14)
 	data := convertBytes(totalCallData)
 	c.Logger.Debugf(c.ctx, "发送总召唤: [% X]", data)
-	c.sendChan <- data
+	select {
+	case <-c.ctx.Done():
+		return
+	case c.sendChan <- data:
+	}
 }
 
-//sendTotalCall 发送电度总召唤
+// sendTotalCall 发送电度总召唤
 func (c *Client) sendElectricityTotalCall() {
 	ssnBytes := parseLittleEndianUInt16(uint16(c.ssn << 1))
 	rsnBytes := parseLittleEndianUInt16(uint16(c.rsn << 1))
@@ -331,7 +334,7 @@ func (c *Client) sendElectricityTotalCall() {
 	c.sendChan <- data
 }
 
-//incrRsn 增加rsn
+// incrRsn 增加rsn
 func (c *Client) incrRsn() {
 	c.rsn++
 	if c.rsn < 0 {
@@ -339,7 +342,7 @@ func (c *Client) incrRsn() {
 	}
 }
 
-//Close 结束程序
+// Close 结束程序
 func (c *Client) handleSignal() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Kill, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
